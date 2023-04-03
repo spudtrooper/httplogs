@@ -19,20 +19,16 @@ var (
 	statuscodes  = flag.String("statuscodes", "", "status codes to filter")
 )
 
-func realMain() error {
+func realMain() {
 	recs, err := httplogs.Parse(flag.Args(), httplogs.ParseResolveIPsFlag(resolve_ip))
-	if err != nil {
-		return err
-	}
+	check.Err(err)
 	statusCodes, err := slice.Ints(*statuscodes)
-	if err != nil {
-		return err
-	}
+	check.Err(err)
 	filtered := httplogs.Filter(recs, httplogs.FilterStatusCodes(statusCodes))
 	grouped := httplogs.Group(filtered)
 
 	if *nosummary {
-		return nil
+		return
 	}
 
 	if *bypath {
@@ -75,11 +71,9 @@ func realMain() error {
 			log.Printf("%7d: %d", len(it.Recs), it.Key)
 		}
 	}
-
-	return nil
 }
 
 func main() {
 	flag.Parse()
-	check.Err(realMain())
+	realMain()
 }
