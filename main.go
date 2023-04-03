@@ -5,15 +5,18 @@ import (
 	"log"
 
 	"github.com/spudtrooper/goutil/check"
+	"github.com/spudtrooper/goutil/slice"
 	"github.com/spudtrooper/httplogs/httplogs"
 )
 
 var (
-	resolve_ip  = flag.Bool("resolve_ip", false, "resolve ip")
-	nosummary   = flag.Bool("nosummary", false, "don't print summary")
-	byip        = flag.Bool("byip", false, "group by ip")
-	bypath      = flag.Bool("bypath", false, "group by path")
-	byuseragent = flag.Bool("byuseragent", false, "group by user agent")
+	resolve_ip   = flag.Bool("resolve_ip", false, "resolve ip")
+	nosummary    = flag.Bool("nosummary", false, "don't print summary")
+	byip         = flag.Bool("byip", false, "group by ip")
+	bypath       = flag.Bool("bypath", false, "group by path")
+	byuseragent  = flag.Bool("byuseragent", false, "group by user agent")
+	bystatuscode = flag.Bool("bystatuscode", false, "group by status code")
+	statuscodes  = flag.String("statuscodes", "", "status codes to filter")
 )
 
 func realMain() error {
@@ -21,7 +24,12 @@ func realMain() error {
 	if err != nil {
 		return err
 	}
-	grouped := httplogs.Group(recs)
+	statusCodes, err := slice.Ints(*statuscodes)
+	if err != nil {
+		return err
+	}
+	filtered := httplogs.Filter(recs, httplogs.FilterStatusCodes(statusCodes))
+	grouped := httplogs.Group(filtered)
 
 	if *nosummary {
 		return nil
@@ -57,6 +65,14 @@ func realMain() error {
 		log.Println("UserAgents")
 		for _, it := range grouped.ByUserAgent {
 			log.Printf("%7d: %s", len(it.Recs), it.Key)
+		}
+	}
+
+	if *bystatuscode {
+		log.Println()
+		log.Println("StatusCodes")
+		for _, it := range grouped.ByStatusCode {
+			log.Printf("%7d: %d", len(it.Recs), it.Key)
 		}
 	}
 

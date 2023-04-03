@@ -23,10 +23,30 @@ func toHist(m map[string][]Record) hist {
 	return res
 }
 
+type intHistItem struct {
+	Key  int
+	Recs []Record
+}
+
+type intHist []intHistItem
+
+func (a intHist) Len() int           { return len(a) }
+func (a intHist) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a intHist) Less(i, j int) bool { return len(a[i].Recs) < len(a[j].Recs) }
+
+func toIntHist(m map[int][]Record) intHist {
+	var res intHist
+	for k, recs := range m {
+		res = append(res, intHistItem{k, recs})
+	}
+	return res
+}
+
 type GroupResult struct {
-	ByIP        hist
-	ByPath      hist
-	ByUserAgent hist
+	ByIP         hist
+	ByPath       hist
+	ByUserAgent  hist
+	ByStatusCode intHist
 }
 
 func Group(recs []*Record) GroupResult {
@@ -58,11 +78,21 @@ func Group(recs []*Record) GroupResult {
 		byUserAgent = toHist(r)
 		sort.Sort(byUserAgent)
 	}
+	var byStatusCode intHist
+	{
+		r := map[int][]Record{}
+		for _, rec := range recs {
+			r[rec.StatusCode] = append(r[rec.StatusCode], *rec)
+		}
+		byStatusCode = toIntHist(r)
+		sort.Sort(byStatusCode)
+	}
 
 	res := GroupResult{
-		ByIP:        byIP,
-		ByPath:      byPath,
-		ByUserAgent: byUserAgent,
+		ByIP:         byIP,
+		ByPath:       byPath,
+		ByUserAgent:  byUserAgent,
+		ByStatusCode: byStatusCode,
 	}
 	return res
 }

@@ -4,6 +4,7 @@ import (
 	"log"
 	"net"
 	"regexp"
+	"strconv"
 
 	"github.com/spudtrooper/goutil/io"
 )
@@ -12,8 +13,8 @@ var (
 	// 216.131.114.61 - - [31/Mar/2023:05:18:27 -0600] "GET /userscripts.html HTTP/1.1" 404 315 "http://www.jeffpalm.com" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 Safari/537.36" www.jeffpalm.com 162.241.225.132
 	ipRE = regexp.MustCompile(`^(\d+\.\d+\.\d+\.\d+)`)
 
-	// "GET /userscripts.html HTTP/1.1"
-	methodRE = regexp.MustCompile(`"(GET|POST|HEAD|PUT|DELETE|CONNECT|OPTIONS|TRACE|PATCH) (\S*) HTTP/\d+\.\d+"`)
+	// "GET /userscripts.html HTTP/1.1" 200
+	methodRE = regexp.MustCompile(`"(GET|POST|HEAD|PUT|DELETE|CONNECT|OPTIONS|TRACE|PATCH) (\S*) HTTP/\d+\.\d+" (\d+)`)
 
 	// "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/112.0.5614.0 Safari/537.36" jeffpalm.com 162.241.225.132
 	userAgentRE1 = regexp.MustCompile(`"https?://[^"]+.com[^"]*" "([^"]+)"'`)
@@ -22,14 +23,6 @@ var (
 	// 301 229 "-" "\\\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Safari/605.1.15\\\""
 	userAgentRE4 = regexp.MustCompile(`\d+ \d+ "?\-?"?\s*(".*") \S+ \d+\.\d+\.\d+\.\d+$`)
 )
-
-type Record struct {
-	IP            string
-	ResolvedHosts []string
-	Method        string
-	Path          string
-	UserAgent     string
-}
 
 type hostnameCache struct {
 	ipToHosts map[string][]string
@@ -84,6 +77,12 @@ func readRecs(filepaths []string) ([]*Record, error) {
 				} else {
 					rec.Method = m[1]
 					rec.Path = m[2]
+					httpCode, err := strconv.Atoi(m[3])
+					if err != nil {
+						log.Printf("error parsing http code: %s", err)
+					} else {
+						rec.StatusCode = httpCode
+					}
 				}
 			}
 			{
