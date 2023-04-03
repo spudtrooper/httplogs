@@ -2,9 +2,9 @@ package httplogs
 
 import (
 	"log"
-	"net"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/spudtrooper/goutil/io"
 )
@@ -24,38 +24,29 @@ var (
 	userAgentRE4 = regexp.MustCompile(`\d+ \d+ "?\-?"?\s*(".*") \S+ \d+\.\d+\.\d+\.\d+$`)
 )
 
-type hostnameCache struct {
-	ipToHosts map[string][]string
-}
+//go:generate genopts --function Parse verbose
+func Parse(filepaths []string, optss ...ParseOption) (chan Record, chan error, error) {
+	opts := MakeParseOptions(optss...)
+	verbose := opts.Verbose()
 
-func newHostnameCache() *hostnameCache {
-	return &hostnameCache{map[string][]string{}}
-}
+	recs := make(chan Record)
+	errs := make(chan error)
 
-func (c *hostnameCache) GetAddr(ip string) ([]string, error) {
-	if hosts, ok := c.ipToHosts[ip]; ok {
-		return hosts, nil
-	}
-	hosts, err := net.LookupAddr(ip)
+	ss, stringsFromFilesErrors, err := io.StringsFromFiles(filepaths)
 	if err != nil {
-		c.ipToHosts[ip] = []string{}
-		return nil, err
-	}
-	c.ipToHosts[ip] = hosts
-	return hosts, nil
-}
-
-func readRecs(filepaths []string) ([]*Record, error) {
-	ss, errs, err := io.StringsFromFiles(filepaths)
-	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	go func() {
-		for err := range errs {
-			log.Printf("error reading file: %s", err)
+		for err := range stringsFromFilesErrors {
+			errs <- err
 		}
 	}()
-	recs := make(chan *Record)
+
+	start := time.Now()
+	if verbose {
+		log.Printf("start parsing")
+	}
+
 	go func() {
 		for s := range ss {
 			if s == "" {
@@ -79,7 +70,7 @@ func readRecs(filepaths []string) ([]*Record, error) {
 					rec.Path = m[2]
 					httpCode, err := strconv.Atoi(m[3])
 					if err != nil {
-						log.Printf("error parsing http code: %s", err)
+						errs <- err
 					} else {
 						rec.StatusCode = httpCode
 					}
@@ -102,39 +93,16 @@ func readRecs(filepaths []string) ([]*Record, error) {
 					rec.UserAgent = m[1]
 				}
 			}
-			recs <- &rec
+			recs <- rec
 		}
 		close(recs)
+		close(errs)
 	}()
 
-	var res []*Record
-	for rec := range recs {
-		res = append(res, rec)
-	}
-	return res, nil
-}
-
-//go:generate genopts --function Parse resolveIPs:bool
-func Parse(filepaths []string, optss ...ParseOption) ([]*Record, error) {
-	opts := MakeParseOptions(optss...)
-
-	recs, err := readRecs(filepaths)
-	if err != nil {
-		return nil, err
+	if verbose {
+		log.Printf("done parsing in %v", time.Since(start))
 	}
 
-	if opts.ResolveIPs() {
-		c := newHostnameCache()
-		for _, rec := range recs {
-			ip := rec.IP
-			hosts, err := c.GetAddr(ip)
-			if err != nil {
-				log.Printf("error looking up %s: %s", ip, err)
-			} else {
-				rec.ResolvedHosts = hosts
-			}
-		}
-	}
+	return recs, errs, nil
 
-	return recs, nil
 }

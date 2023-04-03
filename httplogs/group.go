@@ -49,50 +49,51 @@ type GroupResult struct {
 	ByStatusCode intHist
 }
 
-func Group(recs []*Record) GroupResult {
-
+func Group(recs []Record) GroupResult {
 	var byPath hist
 	{
 		r := map[string][]Record{}
 		for _, rec := range recs {
-			r[rec.Path] = append(r[rec.Path], *rec)
+			r[rec.Path] = append(r[rec.Path], rec)
 		}
 		byPath = toHist(r)
 		sort.Sort(byPath)
 	}
+
 	var byIP hist
 	{
 		r := map[string][]Record{}
 		for _, rec := range recs {
-			r[rec.IP] = append(r[rec.IP], *rec)
+			r[rec.IP] = append(r[rec.IP], rec)
 		}
 		byIP = toHist(r)
 		sort.Sort(byIP)
 	}
+
 	var byUserAgent hist
 	{
 		r := map[string][]Record{}
 		for _, rec := range recs {
-			r[rec.UserAgent] = append(r[rec.UserAgent], *rec)
+			r[rec.UserAgent] = append(r[rec.UserAgent], rec)
 		}
 		byUserAgent = toHist(r)
 		sort.Sort(byUserAgent)
 	}
+
 	var byStatusCode intHist
 	{
 		r := map[int][]Record{}
 		for _, rec := range recs {
-			r[rec.StatusCode] = append(r[rec.StatusCode], *rec)
+			r[rec.StatusCode] = append(r[rec.StatusCode], rec)
 		}
 		byStatusCode = toIntHist(r)
 		sort.Sort(byStatusCode)
 	}
 
-	res := GroupResult{
+	return GroupResult{
 		ByIP:         byIP,
 		ByPath:       byPath,
 		ByUserAgent:  byUserAgent,
 		ByStatusCode: byStatusCode,
 	}
-	return res
 }

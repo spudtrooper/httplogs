@@ -11,33 +11,33 @@ type ParseOption struct {
 func (o ParseOption) String() string { return o.s }
 
 type ParseOptions interface {
-	ResolveIPs() bool
-	HasResolveIPs() bool
+	Verbose() bool
+	HasVerbose() bool
 }
 
-func ParseResolveIPs(resolveIPs bool) ParseOption {
+func ParseVerbose(verbose bool) ParseOption {
 	return ParseOption{func(opts *parseOptionImpl) {
-		opts.has_resolveIPs = true
-		opts.resolveIPs = resolveIPs
-	}, fmt.Sprintf("httplogs.ParseResolveIPs(bool %+v)", resolveIPs)}
+		opts.has_verbose = true
+		opts.verbose = verbose
+	}, fmt.Sprintf("httplogs.ParseVerbose(bool %+v)", verbose)}
 }
-func ParseResolveIPsFlag(resolveIPs *bool) ParseOption {
+func ParseVerboseFlag(verbose *bool) ParseOption {
 	return ParseOption{func(opts *parseOptionImpl) {
-		if resolveIPs == nil {
+		if verbose == nil {
 			return
 		}
-		opts.has_resolveIPs = true
-		opts.resolveIPs = *resolveIPs
-	}, fmt.Sprintf("httplogs.ParseResolveIPs(bool %+v)", resolveIPs)}
+		opts.has_verbose = true
+		opts.verbose = *verbose
+	}, fmt.Sprintf("httplogs.ParseVerbose(bool %+v)", verbose)}
 }
 
 type parseOptionImpl struct {
-	resolveIPs     bool
-	has_resolveIPs bool
+	verbose     bool
+	has_verbose bool
 }
 
-func (p *parseOptionImpl) ResolveIPs() bool    { return p.resolveIPs }
-func (p *parseOptionImpl) HasResolveIPs() bool { return p.has_resolveIPs }
+func (p *parseOptionImpl) Verbose() bool    { return p.verbose }
+func (p *parseOptionImpl) HasVerbose() bool { return p.has_verbose }
 
 func makeParseOptionImpl(opts ...ParseOption) *parseOptionImpl {
 	res := &parseOptionImpl{}
