@@ -99,7 +99,7 @@ func realMain() {
 				if len(it.Recs) > 0 {
 					hostnames = it.Recs[0].ResolvedHosts
 				}
-				fmt.Printf("%7d: %s (%s)\n", len(it.Recs), ip, strings.Join(hostnames, ","))
+				fmt.Printf("%7d: %-50s (%s)\n", len(it.Recs), strings.Join(hostnames, ","), ip)
 			} else {
 				fmt.Printf("%7d: %s\n", len(it.Recs), ip)
 			}

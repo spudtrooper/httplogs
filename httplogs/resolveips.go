@@ -153,7 +153,12 @@ func ResolveIPs(recs []Record, optss ...ResolveIPsOption) ([]Record, error) {
 	resolvedIPsMapDone := make(chan bool, 1)
 	go func() {
 		for resolvedIP := range resolvedIPs {
-			resolvedIPsMap[resolvedIP.ip] = resolvedIP.hosts
+			// Remove dots at the end
+			var hosts []string
+			for _, h := range resolvedIP.hosts {
+				hosts = append(hosts, strings.TrimSuffix(h, "."))
+			}
+			resolvedIPsMap[resolvedIP.ip] = hosts
 		}
 		resolvedIPsMapDone <- true
 	}()
