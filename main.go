@@ -30,23 +30,29 @@ var (
 )
 
 func realMain() {
-	recsCh, errs, err := httplogs.Parse(flag.Args(),
-		httplogs.ParseVerboseFlag(verboseparse))
-	go func() {
-		for err := range errs {
-			log.Printf("error parsing: %s", err)
-		}
-	}()
-	check.Err(err)
 	var recs []httplogs.Record
-	recsDone := make(chan bool, 1)
-	go func() {
-		for rec := range recsCh {
-			recs = append(recs, rec)
-		}
-		recsDone <- true
-	}()
-	<-recsDone
+	{
+		recsCh, errs, err := httplogs.Parse(flag.Args(),
+			httplogs.ParseVerboseFlag(verboseparse))
+		go func() {
+			for err := range errs {
+				log.Printf("error parsing: %s", err)
+			}
+		}()
+		check.Err(err)
+		recsDone := make(chan bool, 1)
+		go func() {
+			for rec := range recsCh {
+				recs = append(recs, rec)
+			}
+			recsDone <- true
+		}()
+		<-recsDone
+	}
+	if len(recs) == 0 {
+		log.Fatalf("no records found")
+		return
+	}
 
 	statusCodes, err := slice.Ints(*filterstatuscodes)
 	check.Err(err)
