@@ -31,13 +31,11 @@ var (
 
 func realMain() {
 	files := flag.Args()
-	if len(files) == 0 {
-		log.Fatalf("no files specified")
-	}
+
 	var recs []httplogs.Record
 	var recsCh <-chan httplogs.Record
 	var errs <-chan error
-	if len(files) == 1 && files[0] == "-" {
+	if len(files) == 0 || (len(files) == 1 && files[0] == "-") {
 		r, es, err := httplogs.ParseFromStdin(httplogs.ParseVerboseFlag(verboseparse))
 		check.Err(err)
 		recsCh = r
