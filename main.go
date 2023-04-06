@@ -35,23 +35,32 @@ func realMain() {
 		log.Fatalf("no files specified")
 	}
 	var recs []httplogs.Record
-	{
-		recsCh, errs, err := httplogs.Parse(files, httplogs.ParseVerboseFlag(verboseparse))
-		go func() {
-			for err := range errs {
-				log.Printf("error parsing: %s", err)
-			}
-		}()
+	var recsCh <-chan httplogs.Record
+	var errs <-chan error
+	if len(files) == 1 && files[0] == "-" {
+		r, es, err := httplogs.ParseFromStdin(httplogs.ParseVerboseFlag(verboseparse))
 		check.Err(err)
-		recsDone := make(chan bool, 1)
-		go func() {
-			for rec := range recsCh {
-				recs = append(recs, rec)
-			}
-			recsDone <- true
-		}()
-		<-recsDone
+		recsCh = r
+		errs = es
+	} else {
+		r, es, err := httplogs.ParseFiles(files, httplogs.ParseVerboseFlag(verboseparse))
+		check.Err(err)
+		recsCh = r
+		errs = es
 	}
+	go func() {
+		for err := range errs {
+			log.Printf("error parsing: %s", err)
+		}
+	}()
+	recsDone := make(chan bool, 1)
+	go func() {
+		for rec := range recsCh {
+			recs = append(recs, rec)
+		}
+		recsDone <- true
+	}()
+	<-recsDone
 
 	if len(recs) == 0 {
 		log.Fatalf("no records found after parse")
@@ -90,7 +99,12 @@ func realMain() {
 		return
 	}
 
-	if *bypath {
+	byPath := *bypath
+	if !*byip && !*bypath && !*byuseragent && !*bystatuscode {
+		byPath = true
+	}
+
+	if byPath {
 		fmt.Println()
 		fmt.Println("Paths")
 		for _, it := range grouped.ByPath {

@@ -1,13 +1,17 @@
 package httplogs
 
 import (
+	"bufio"
 	"log"
+	"os"
 	"regexp"
 	"strconv"
 	"time"
 
 	"github.com/spudtrooper/goutil/io"
 )
+
+//go:generate genopts --function Parse verbose
 
 var (
 	// 216.131.114.61 - - [31/Mar/2023:05:18:27 -0600] "GET /userscripts.html HTTP/1.1" 404 315 "http://www.jeffpalm.com" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 Safari/537.36" www.jeffpalm.com 162.241.225.132
@@ -24,23 +28,39 @@ var (
 	userAgentRE4 = regexp.MustCompile(`\d+ \d+ "?\-?"?\s*(".*") \S+ \d+\.\d+\.\d+\.\d+$`)
 )
 
-//go:generate genopts --function Parse verbose
-func Parse(filepaths []string, optss ...ParseOption) (chan Record, chan error, error) {
-	opts := MakeParseOptions(optss...)
-	verbose := opts.Verbose()
-
-	recs := make(chan Record)
+func ParseFromStdin(optss ...ParseOption) (chan Record, chan error, error) {
+	scanner := bufio.NewScanner(os.Stdin)
+	ss := make(chan string)
+	go func() {
+		for scanner.Scan() {
+			ss <- scanner.Text()
+		}
+		close(ss)
+	}()
 	errs := make(chan error)
 
+	return parse(ss, errs, optss...)
+}
+
+func ParseFiles(filepaths []string, optss ...ParseOption) (chan Record, chan error, error) {
 	ss, stringsFromFilesErrors, err := io.StringsFromFiles(filepaths)
 	if err != nil {
 		return nil, nil, err
 	}
+	errs := make(chan error)
 	go func() {
 		for err := range stringsFromFilesErrors {
 			errs <- err
 		}
 	}()
+	return parse(ss, errs, optss...)
+}
+
+func parse(ss chan string, errs chan error, optss ...ParseOption) (chan Record, chan error, error) {
+	opts := MakeParseOptions(optss...)
+	verbose := opts.Verbose()
+
+	recs := make(chan Record)
 
 	start := time.Now()
 	if verbose {
@@ -104,5 +124,4 @@ func Parse(filepaths []string, optss ...ParseOption) (chan Record, chan error, e
 	}
 
 	return recs, errs, nil
-
 }
