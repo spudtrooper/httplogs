@@ -30,10 +30,13 @@ var (
 )
 
 func realMain() {
+	files := flag.Args()
+	if len(files) == 0 {
+		log.Fatalf("no files specified")
+	}
 	var recs []httplogs.Record
 	{
-		recsCh, errs, err := httplogs.Parse(flag.Args(),
-			httplogs.ParseVerboseFlag(verboseparse))
+		recsCh, errs, err := httplogs.Parse(files, httplogs.ParseVerboseFlag(verboseparse))
 		go func() {
 			for err := range errs {
 				log.Printf("error parsing: %s", err)
@@ -49,8 +52,9 @@ func realMain() {
 		}()
 		<-recsDone
 	}
+
 	if len(recs) == 0 {
-		log.Fatalf("no records found")
+		log.Fatalf("no records found after parse")
 		return
 	}
 
@@ -64,6 +68,11 @@ func realMain() {
 		httplogs.FilterUserAgentFilterFlag(filteruseragent),
 		httplogs.FilterNegUserAgentFilterFlag(filteroutuseragent),
 	)
+
+	if len(recs) == 0 {
+		log.Fatalf("no records found after filtering")
+		return
+	}
 
 	if *resolveips {
 		resolvedRecs, err := httplogs.ResolveIPs(recs,
